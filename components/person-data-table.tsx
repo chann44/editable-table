@@ -11,10 +11,9 @@ import {
   TableHeader,
   TableRow,
 } from "-/components/ui/table";
+import { useColumns } from "./person/data-columns";
+import { useSkipper } from "-/hooks/use-skipper";
 
-//
-
-//
 import {
   Column,
   type Table as TB,
@@ -28,6 +27,9 @@ import {
 } from "@tanstack/react-table";
 import { makeData, Person } from "./makeData";
 import { Button } from "./ui/button";
+import { defaultColumn } from "./person/default-input-column";
+import { usePersonData } from "./person/user-person-data";
+import { TrashIcon } from "lucide-react";
 
 declare module "@tanstack/react-table" {
   interface TableMeta<TData extends RowData> {
@@ -35,107 +37,12 @@ declare module "@tanstack/react-table" {
   }
 }
 
-// Give our default column cell renderer editing superpowers!
-const defaultColumn: Partial<ColumnDef<Person>> = {
-  cell: ({ getValue, row: { index }, column: { id }, table }) => {
-    const initialValue = getValue();
-    // We need to keep and update the state of the cell normally
-    const [value, setValue] = React.useState(initialValue);
-
-    // When the input is blurred, we'll call our table meta's updateData function
-    const onBlur = () => {
-      table.options.meta?.updateData(index, id, value);
-    };
-
-    // If the initialValue is changed external, sync it up with our state
-    React.useEffect(() => {
-      setValue(initialValue);
-    }, [initialValue]);
-
-    return (
-      <input
-        value={value as string}
-        onChange={(e) => setValue(e.target.value)}
-        onBlur={onBlur}
-      />
-    );
-  },
-};
-
-function useSkipper() {
-  const shouldSkipRef = React.useRef(true);
-  const shouldSkip = shouldSkipRef.current;
-
-  // Wrap a function with this to skip a pagination reset temporarily
-  const skip = React.useCallback(() => {
-    shouldSkipRef.current = false;
-  }, []);
-
-  React.useEffect(() => {
-    shouldSkipRef.current = true;
-  });
-
-  return [shouldSkip, skip] as const;
-}
-
 export function PersonDataTable() {
   const rerender = React.useReducer(() => ({}), {})[1];
 
-  const columns = React.useMemo<ColumnDef<Person>[]>(
-    () => [
-      {
-        header: "Name",
-        footer: (props) => props.column.id,
-        columns: [
-          {
-            accessorKey: "firstName",
-            footer: (props) => props.column.id,
-          },
-          {
-            accessorFn: (row) => row.lastName,
-            id: "lastName",
-            header: () => <span>Last Name</span>,
-            footer: (props) => props.column.id,
-          },
-        ],
-      },
-      {
-        header: "Info",
-        footer: (props) => props.column.id,
-        columns: [
-          {
-            accessorKey: "age",
-            header: () => "Age",
-            footer: (props) => props.column.id,
-          },
-          {
-            header: "More Info",
-            columns: [
-              {
-                accessorKey: "visits",
-                header: () => <span>Visits</span>,
-                footer: (props) => props.column.id,
-              },
-              {
-                accessorKey: "status",
-                header: "Status",
-                footer: (props) => props.column.id,
-              },
-              {
-                accessorKey: "progress",
-                header: "Profile Progress",
-                footer: (props) => props.column.id,
-              },
-            ],
-          },
-        ],
-      },
-    ],
-    []
-  );
-
-  const [data, setData] = React.useState(() => makeData(1000));
-  const refreshData = () => setData(() => makeData(1000));
+  const { data, setData } = usePersonData();
+  const refreshData = () => setData(() => makeData(2));
+  const columns = useColumns();
 
   const [autoResetPageIndex, skipAutoResetPageIndex] = useSkipper();
 
@@ -167,6 +74,28 @@ export function PersonDataTable() {
     },
     debugTable: true,
   });
+
+  const AddNewRow = () => {
+    return (
+      <Button
+        onClick={() => {
+          setData((prev) => [
+            {
+              age: 0,
+              firstName: "",
+              lastName: "",
+              progress: 0,
+              status: "complicated",
+              visits: 0,
+            },
+            ...prev,
+          ]);
+        }}
+      >
+        Add Row
+      </Button>
+    );
+  };
 
   return (
     <div className="p-2">
@@ -211,6 +140,18 @@ export function PersonDataTable() {
                     </TableCell>
                   );
                 })}
+                <TableCell key={row.index}>
+                  <Button
+                    onClick={() => {
+                      setData(() => [
+                        ...data.filter(({}, index) => index !== row.index),
+                      ]);
+                    }}
+                    size={"icon"}
+                  >
+                    <TrashIcon />
+                  </Button>
+                </TableCell>
               </TableRow>
             );
           })}
@@ -287,6 +228,14 @@ export function PersonDataTable() {
       <div>
         <button onClick={() => refreshData()}>Refresh Data</button>
       </div>
+      <AddNewRow />
+      <Button
+        onClick={() => {
+          console.log(data);
+        }}
+      >
+        Show Data
+      </Button>
     </div>
   );
 }

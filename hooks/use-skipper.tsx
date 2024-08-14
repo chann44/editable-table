@@ -1,6 +1,7 @@
 "use client";
+import React from "react";
 
-function useSkipper() {
+export function useSkipper() {
   const shouldSkipRef = React.useRef(true);
   const shouldSkip = shouldSkipRef.current;
 
